@@ -1,0 +1,65 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if isSignedInOwner(userId);
+
+      match /tasks/{taskId} {
+        allow read: if isSignedInOwner(userId);
+        allow create: if isSignedInOwner(userId) && isValidCreate(userId);
+        allow update: if isSignedInOwner(userId) && isValidUpdate(userId);
+        allow delete: if isSignedInOwner(userId) && resource.data.ownerId == userId;
+      }
+    }
+  }
+
+  function isSignedInOwner(userId) {
+    return request.auth != null && request.auth.uid == userId;
+  }
+
+  function hasTaskShape(data) {
+    return data.keys().hasOnly([
+      'ownerId',
+      'title',
+      'description',
+      'priority',
+      'dueDate',
+      'status',
+      'createdAt',
+      'updatedAt'
+    ]) &&
+    data.ownerId is string &&
+    data.title is string &&
+    data.description is string &&
+    data.priority is string &&
+    data.dueDate is timestamp &&
+    data.status is string &&
+    data.createdAt is timestamp &&
+    data.updatedAt is timestamp;
+  }
+
+  function hasValidTaskValues(data, userId) {
+    return data.ownerId == userId &&
+      data.title.size() > 0 &&
+      data.title.size() <= 100 &&
+      data.description.size() > 0 &&
+      data.priority in ['low', 'medium', 'high'] &&
+      data.status in ['pending', 'inProgress', 'completed'];
+  }
+
+  function isValidCreate(userId) {
+    return hasTaskShape(request.resource.data) &&
+      hasValidTaskValues(request.resource.data, userId) &&
+      request.resource.data.createdAt == request.time &&
+      request.resource.data.updatedAt == request.time;
+  }
+
+  function isValidUpdate(userId) {
+    return hasTaskShape(request.resource.data) &&
+      hasValidTaskValues(request.resource.data, userId) &&
+      resource.data.ownerId == userId &&
+      request.resource.data.createdAt == resource.data.createdAt &&
+      request.resource.data.updatedAt == request.time;
+  }
+}

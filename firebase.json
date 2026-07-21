@@ -1,0 +1,33 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "to-do-management-recovery",
+          "appId": "1:1004530815304:android:850dc7f8b430130380637d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "to-do-management-recovery",
+          "appId": "1:1004530815304:ios:e7f1a2e6b14fac0b80637d",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "to-do-management-recovery",
+          "configurations": {
+            "android": "1:1004530815304:android:850dc7f8b430130380637d",
+            "ios": "1:1004530815304:ios:e7f1a2e6b14fac0b80637d"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

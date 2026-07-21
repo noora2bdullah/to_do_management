@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1004530815304",
+    "project_id": "to-do-management-recovery",
+    "storage_bucket": "to-do-management-recovery.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1004530815304:android:850dc7f8b430130380637d",
+        "android_client_info": {
+          "package_name": "com.recovery.to_do_man_management"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuX34CftZ78FcRIoaoSvYmkNVaPNrlI_E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
