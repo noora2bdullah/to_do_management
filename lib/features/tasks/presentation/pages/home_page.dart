@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/theme/app_text_style.dart';
 import '../../../../core/utils/date_time_formatter.dart';
+import '../../../../core/widgets/app_widgets.dart';
 import '../../../auth/domain/entities/app_user.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_event.dart';
+import '../../../auth/presentation/widgets/auth_account_menu.dart';
 import '../../domain/entities/todo_task.dart';
 import '../bloc/tasks_bloc.dart';
 import '../bloc/tasks_event.dart';
 import '../bloc/tasks_state.dart';
-import '../widgets/task_card.dart';
-import '../widgets/task_filters_panel.dart';
-import '../widgets/task_metric_tile.dart';
-import '../widgets/task_state_panel.dart';
+import '../widgets/home_content.dart';
+import '../widgets/task_visuals.dart';
 import 'task_form_page.dart';
 
 class HomePage extends StatelessWidget {
@@ -35,36 +34,16 @@ class HomePage extends StatelessWidget {
       },
       child: Scaffold(
         appBar: AppBar(
+          notificationPredicate: (_) => false,
           title: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.task_alt),
+              AppIconAsset(size: 30),
               SizedBox(width: 10),
-              Text('TaskFlow'),
+              Text('To-Do'),
             ],
           ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 180),
-                  child: Text(
-                    user.email,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Sign out',
-              onPressed: () {
-                context.read<AuthBloc>().add(const AuthSignOutRequested());
-              },
-              icon: const Icon(Icons.logout),
-            ),
-          ],
+          actions: [AuthAccountMenu(user: user)],
         ),
         floatingActionButton: FloatingActionButton.extended(
           heroTag: 'create-task-fab',
@@ -72,31 +51,18 @@ class HomePage extends StatelessWidget {
           icon: const Icon(Icons.add),
           label: const Text('Task'),
         ),
-        body: SafeArea(
-          child: BlocBuilder<TasksBloc, TasksState>(
-            builder: (context, state) {
-              return RefreshIndicator(
-                onRefresh: () => _refresh(context),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1120),
-                        child: _HomeContent(
-                          state: state,
-                          onCreateTask: () => _openTaskForm(context),
-                          onEditTask: (task) =>
-                              _openTaskForm(context, task: task),
-                          onDeleteTask: (task) => _confirmDelete(context, task),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+          child: SafeArea(
+            child: HomeContent(
+              onRefresh: () => _refresh(context),
+              onCreateTask: () => _openTaskForm(context),
+              onEditTask: (task) => _openTaskForm(context, task: task),
+              onDeleteTask: (task) => _confirmDelete(context, task),
+            ),
           ),
         ),
       ),
@@ -105,13 +71,20 @@ class HomePage extends StatelessWidget {
 
   Future<void> _refresh(BuildContext context) async {
     final bloc = context.read<TasksBloc>();
+    final previousLastSyncedAt = bloc.state.lastSyncedAt;
+
     bloc.add(const TasksRefreshRequested());
     await bloc.stream
-        .firstWhere((state) => state.loadStatus != TasksLoadStatus.loading)
+        .firstWhere(
+          (state) =>
+              state.lastSyncedAt != previousLastSyncedAt ||
+              state.loadStatus == TasksLoadStatus.failure,
+        )
         .timeout(const Duration(seconds: 3), onTimeout: () => bloc.state);
   }
 
   Future<void> _openTaskForm(BuildContext context, {TodoTask? task}) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final bloc = context.read<TasksBloc>();
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -126,24 +99,11 @@ class HomePage extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, TodoTask task) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete task'),
-          content: Text('Delete "${task.title}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Delete'),
-            ),
-          ],
-        );
+        return _DeleteTaskDialog(task: task);
       },
     );
 
@@ -155,247 +115,281 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _HomeContent extends StatelessWidget {
-  const _HomeContent({
-    required this.state,
-    required this.onCreateTask,
-    required this.onEditTask,
-    required this.onDeleteTask,
-  });
+class _DeleteTaskDialog extends StatelessWidget {
+  const _DeleteTaskDialog({required this.task});
 
-  final TasksState state;
-  final VoidCallback onCreateTask;
-  final ValueChanged<TodoTask> onEditTask;
-  final ValueChanged<TodoTask> onDeleteTask;
+  final TodoTask task;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final errorColor = colorScheme.error;
+    final priorityColor = taskPriorityColor(context, task.priority);
+    final statusColor = taskStatusColor(context, task.status);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 900;
-        final dashboard = _DashboardHeader(
-          state: state,
-          onCreateTask: onCreateTask,
-        );
-        final filters = TaskFiltersPanel(state: state);
-        final tasks = _TasksContent(
-          state: state,
-          onCreateTask: onCreateTask,
-          onEditTask: onEditTask,
-          onDeleteTask: onDeleteTask,
-        );
-
-        if (isWide) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 320,
-                child: Column(
-                  children: [dashboard, const SizedBox(height: 16), filters],
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: AppTextStyle.surfaceGradient(
+              colorScheme,
+              tintColor: errorColor,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DeleteDialogHeader(color: errorColor),
+                const SizedBox(height: 18),
+                _DeleteTaskPreview(
+                  task: task,
+                  priorityColor: priorityColor,
+                  statusColor: statusColor,
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: tasks),
-            ],
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            dashboard,
-            const SizedBox(height: 16),
-            filters,
-            const SizedBox(height: 16),
-            if (state.isLoading && state.hasTasks) ...[
-              LinearProgressIndicator(
-                color: colorScheme.primary,
-                backgroundColor: colorScheme.surfaceContainerHighest,
-              ),
-              const SizedBox(height: 12),
-            ],
-            tasks,
-          ],
-        );
-      },
+                const SizedBox(height: 14),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer.withValues(alpha: 0.42),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: errorColor.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: colorScheme.onErrorContainer,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'This task will be permanently removed.',
+                            style: AppTextStyle.style13SemiBold.copyWith(
+                              color: colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: errorColor,
+                        foregroundColor: colorScheme.onError,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(true),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({required this.state, required this.onCreateTask});
+class _DeleteDialogHeader extends StatelessWidget {
+  const _DeleteDialogHeader({required this.color});
 
-  final TasksState state;
-  final VoidCallback onCreateTask;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tasks',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Synced ${DateTime.now().toTaskDate()}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton.filled(
-              tooltip: 'Create task',
-              onPressed: onCreateTask,
-              icon: const Icon(Icons.add),
-            ),
-          ],
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: colorScheme.errorContainer,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(Icons.delete_forever_outlined, color: color),
         ),
-        const SizedBox(height: 16),
-        GridView.count(
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 2,
-          shrinkWrap: true,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          children: [
-            TaskMetricTile(
-              icon: Icons.inventory_2_outlined,
-              label: 'Total',
-              value: state.tasks.length,
-              color: colorScheme.primary,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Delete task',
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyle.style20Bold.copyWith(
+              color: colorScheme.onSurface,
             ),
-            TaskMetricTile(
-              icon: Icons.radio_button_unchecked,
-              label: 'Pending',
-              value: state.pendingCount,
-              color: colorScheme.outline,
-            ),
-            TaskMetricTile(
-              icon: Icons.sync,
-              label: 'Progress',
-              value: state.inProgressCount,
-              color: const Color(0xFF2563EB),
-            ),
-            TaskMetricTile(
-              icon: Icons.check_circle_outline,
-              label: 'Done',
-              value: state.completedCount,
-              color: const Color(0xFF15803D),
-            ),
-          ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(context).pop(false),
+          icon: const Icon(Icons.close),
         ),
       ],
     );
   }
 }
 
-class _TasksContent extends StatelessWidget {
-  const _TasksContent({
-    required this.state,
-    required this.onCreateTask,
-    required this.onEditTask,
-    required this.onDeleteTask,
+class _DeleteTaskPreview extends StatelessWidget {
+  const _DeleteTaskPreview({
+    required this.task,
+    required this.priorityColor,
+    required this.statusColor,
   });
 
-  final TasksState state;
-  final VoidCallback onCreateTask;
-  final ValueChanged<TodoTask> onEditTask;
-  final ValueChanged<TodoTask> onDeleteTask;
+  final TodoTask task;
+  final Color priorityColor;
+  final Color statusColor;
 
   @override
   Widget build(BuildContext context) {
-    final visibleTasks = state.visibleTasks;
-    final contentKey = ValueKey(
-      '${state.loadStatus}-${state.tasks.length}-${visibleTasks.length}',
-    );
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      child: switch (state.loadStatus) {
-        TasksLoadStatus.initial ||
-        TasksLoadStatus.loading when !state.hasTasks => const TaskStatePanel(
-          key: ValueKey('loading'),
-          icon: Icons.hourglass_empty,
-          title: 'Loading tasks',
-          message: 'Connecting to Firestore.',
-          isLoading: true,
-        ),
-        TasksLoadStatus.failure when !state.hasTasks => TaskStatePanel(
-          key: ValueKey('failure'),
-          icon: Icons.cloud_off_outlined,
-          title: 'Unable to load tasks',
-          message: state.loadError ?? 'Please try again.',
-          action: FilledButton.icon(
-            onPressed: () {
-              context.read<TasksBloc>().add(const TasksRefreshRequested());
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
-          ),
-        ),
-        _ when !state.hasTasks => TaskStatePanel(
-          key: ValueKey('empty-all'),
-          icon: Icons.playlist_add_check,
-          title: 'No tasks yet',
-          message: 'Create your first task to start tracking work.',
-          action: FilledButton.icon(
-            onPressed: onCreateTask,
-            icon: const Icon(Icons.add),
-            label: const Text('Task'),
-          ),
-        ),
-        _ when visibleTasks.isEmpty => TaskStatePanel(
-          key: ValueKey('empty-filtered'),
-          icon: Icons.filter_alt_off_outlined,
-          title: 'No matching tasks',
-          message: 'Adjust the current filters or search text.',
-        ),
-        _ => Column(
-          key: contentKey,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTextStyle.surfaceBorderColor(colorScheme)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (state.isLoading) ...[
-              const LinearProgressIndicator(),
-              const SizedBox(height: 12),
-            ],
-            ...visibleTasks.map(
-              (task) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: TaskCard(
-                  task: task,
-                  onEdit: () => onEditTask(task),
-                  onDelete: () => onDeleteTask(task),
-                  onStatusChanged: (status) {
-                    context.read<TasksBloc>().add(
-                      TaskStatusChanged(taskId: task.id, status: status),
-                    );
-                  },
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: priorityColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: priorityColor.withValues(alpha: 0.24),
+                    ),
+                  ),
+                  child: Icon(
+                    taskPriorityIcon(task.priority),
+                    color: priorityColor,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        task.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyle.style16Bold.copyWith(
+                          color: colorScheme.onSurface,
+                          height: 1.16,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        task.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyle.style13Regular.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _DeleteTaskChip(
+                  icon: Icons.event,
+                  label: task.dueDate.toTaskDate(),
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                _DeleteTaskChip(
+                  icon: Icons.flag_outlined,
+                  label: task.priority.label,
+                  color: priorityColor,
+                ),
+                _DeleteTaskChip(
+                  icon: taskStatusIcon(task.status),
+                  label: task.status.label,
+                  color: statusColor,
+                ),
+              ],
             ),
           ],
         ),
-      },
+      ),
+    );
+  }
+}
+
+class _DeleteTaskChip extends StatelessWidget {
+  const _DeleteTaskChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 5),
+            Text(label, style: AppTextStyle.style10Bold.copyWith(color: color)),
+          ],
+        ),
+      ),
     );
   }
 }

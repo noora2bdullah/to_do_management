@@ -19,7 +19,7 @@ service cloud.firestore {
   }
 
   function hasTaskShape(data) {
-    return data.keys().hasOnly([
+    return data.keys().hasAll([
       'ownerId',
       'title',
       'description',
@@ -29,14 +29,30 @@ service cloud.firestore {
       'createdAt',
       'updatedAt'
     ]) &&
+    data.keys().hasOnly([
+      'ownerId',
+      'title',
+      'description',
+      'priority',
+      'dueDate',
+      'status',
+      'sortOrder',
+      'createdAt',
+      'updatedAt'
+    ]) &&
     data.ownerId is string &&
     data.title is string &&
     data.description is string &&
     data.priority is string &&
     data.dueDate is timestamp &&
     data.status is string &&
+    (!data.keys().hasAny(['sortOrder']) || data.sortOrder is int) &&
     data.createdAt is timestamp &&
     data.updatedAt is timestamp;
+  }
+
+  function hasSortableTaskShape(data) {
+    return hasTaskShape(data) && data.keys().hasAll(['sortOrder']);
   }
 
   function hasValidTaskValues(data, userId) {
@@ -49,7 +65,7 @@ service cloud.firestore {
   }
 
   function isValidCreate(userId) {
-    return hasTaskShape(request.resource.data) &&
+    return hasSortableTaskShape(request.resource.data) &&
       hasValidTaskValues(request.resource.data, userId) &&
       request.resource.data.createdAt == request.time &&
       request.resource.data.updatedAt == request.time;
@@ -60,6 +76,14 @@ service cloud.firestore {
       hasValidTaskValues(request.resource.data, userId) &&
       resource.data.ownerId == userId &&
       request.resource.data.createdAt == resource.data.createdAt &&
-      request.resource.data.updatedAt == request.time;
+      (
+        request.resource.data.updatedAt == request.time ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'sortOrder'
+          ]) &&
+          request.resource.data.updatedAt == resource.data.updatedAt
+        )
+      );
   }
 }

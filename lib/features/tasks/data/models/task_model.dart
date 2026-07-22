@@ -12,6 +12,7 @@ final class TaskModel extends TodoTask {
     required super.priority,
     required super.dueDate,
     required super.status,
+    required super.sortOrder,
     required super.createdAt,
     required super.updatedAt,
   });
@@ -21,6 +22,8 @@ final class TaskModel extends TodoTask {
   ) {
     final data = snapshot.data() ?? <String, dynamic>{};
     final now = DateTime.now();
+    final createdAt = _dateFromValue(data['createdAt']) ?? now;
+    final updatedAt = _dateFromValue(data['updatedAt']) ?? now;
 
     return TaskModel(
       id: snapshot.id,
@@ -30,14 +33,18 @@ final class TaskModel extends TodoTask {
       priority: taskPriorityFromName(data['priority'] as String?),
       dueDate: _dateFromValue(data['dueDate']) ?? now,
       status: taskStatusFromName(data['status'] as String?),
-      createdAt: _dateFromValue(data['createdAt']) ?? now,
-      updatedAt: _dateFromValue(data['updatedAt']) ?? now,
+      sortOrder:
+          _sortOrderFromValue(data['sortOrder']) ??
+          -createdAt.millisecondsSinceEpoch,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 
   static Map<String, Object?> createMap({
     required String userId,
     required TaskInput input,
+    required int sortOrder,
   }) {
     return {
       'ownerId': userId,
@@ -46,6 +53,7 @@ final class TaskModel extends TodoTask {
       'priority': input.priority.name,
       'dueDate': Timestamp.fromDate(input.dueDate),
       'status': input.status.name,
+      'sortOrder': sortOrder,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -59,6 +67,7 @@ final class TaskModel extends TodoTask {
       'priority': task.priority.name,
       'dueDate': Timestamp.fromDate(task.dueDate),
       'status': task.status.name,
+      'sortOrder': task.sortOrder,
       'createdAt': Timestamp.fromDate(task.createdAt),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -66,6 +75,10 @@ final class TaskModel extends TodoTask {
 
   static Map<String, Object?> statusMap(TaskStatus status) {
     return {'status': status.name, 'updatedAt': FieldValue.serverTimestamp()};
+  }
+
+  static Map<String, Object?> sortOrderMap(int sortOrder) {
+    return {'sortOrder': sortOrder};
   }
 }
 
@@ -78,6 +91,20 @@ DateTime? _dateFromValue(Object? value) {
   }
   if (value is String) {
     return DateTime.tryParse(value);
+  }
+
+  return null;
+}
+
+int? _sortOrderFromValue(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
   }
 
   return null;

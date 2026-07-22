@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../../../core/usecases/usecase.dart';
 import '../entities/task_input.dart';
+import '../entities/task_sync_snapshot.dart';
 import '../entities/todo_task.dart';
 import '../repositories/task_repository.dart';
 
@@ -15,13 +16,18 @@ final class WatchTasksParams extends Equatable {
 }
 
 final class TaskWriteParams extends Equatable {
-  const TaskWriteParams({required this.userId, required this.input});
+  const TaskWriteParams({
+    required this.userId,
+    required this.input,
+    required this.sortOrder,
+  });
 
   final String userId;
   final TaskInput input;
+  final int sortOrder;
 
   @override
-  List<Object?> get props => [userId, input];
+  List<Object?> get props => [userId, input, sortOrder];
 }
 
 final class UpdateTaskParams extends Equatable {
@@ -59,14 +65,36 @@ final class ChangeTaskStatusParams extends Equatable {
   List<Object?> get props => [userId, taskId, status];
 }
 
-final class WatchTasks extends StreamUseCase<List<TodoTask>, WatchTasksParams> {
+final class ReorderTasksParams extends Equatable {
+  const ReorderTasksParams({required this.userId, required this.tasks});
+
+  final String userId;
+  final List<TodoTask> tasks;
+
+  @override
+  List<Object?> get props => [userId, tasks];
+}
+
+final class WatchTasks
+    extends StreamUseCase<TaskSyncSnapshot, WatchTasksParams> {
   const WatchTasks(this._repository);
 
   final TaskRepository _repository;
 
   @override
-  Stream<List<TodoTask>> call(WatchTasksParams params) {
+  Stream<TaskSyncSnapshot> call(WatchTasksParams params) {
     return _repository.watchTasks(params.userId);
+  }
+}
+
+final class RefreshTasks extends UseCase<TaskSyncSnapshot, WatchTasksParams> {
+  const RefreshTasks(this._repository);
+
+  final TaskRepository _repository;
+
+  @override
+  Future<TaskSyncSnapshot> call(WatchTasksParams params) {
+    return _repository.refreshTasks(params.userId);
   }
 }
 
@@ -77,7 +105,11 @@ final class CreateTask extends UseCase<void, TaskWriteParams> {
 
   @override
   Future<void> call(TaskWriteParams params) {
-    return _repository.createTask(userId: params.userId, input: params.input);
+    return _repository.createTask(
+      userId: params.userId,
+      input: params.input,
+      sortOrder: params.sortOrder,
+    );
   }
 }
 
@@ -115,5 +147,16 @@ final class ChangeTaskStatus extends UseCase<void, ChangeTaskStatusParams> {
       taskId: params.taskId,
       status: params.status,
     );
+  }
+}
+
+final class ReorderTasks extends UseCase<void, ReorderTasksParams> {
+  const ReorderTasks(this._repository);
+
+  final TaskRepository _repository;
+
+  @override
+  Future<void> call(ReorderTasksParams params) {
+    return _repository.reorderTasks(userId: params.userId, tasks: params.tasks);
   }
 }

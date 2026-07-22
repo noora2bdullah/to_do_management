@@ -4,7 +4,7 @@ enum TaskPriority { low, medium, high }
 
 enum TaskStatus { pending, inProgress, completed }
 
-enum TaskSortOption { dueDate, createdDate }
+enum TaskSortOption { manual, dueDate, createdDate }
 
 extension TaskPriorityLabel on TaskPriority {
   String get label {
@@ -29,6 +29,7 @@ extension TaskStatusLabel on TaskStatus {
 extension TaskSortOptionLabel on TaskSortOption {
   String get label {
     return switch (this) {
+      TaskSortOption.manual => 'Manual',
       TaskSortOption.dueDate => 'Due Date',
       TaskSortOption.createdDate => 'Created Date',
     };
@@ -43,10 +44,24 @@ TaskPriority taskPriorityFromName(String? value) {
 }
 
 TaskStatus taskStatusFromName(String? value) {
-  return TaskStatus.values.firstWhere(
-    (status) => status.name == value,
-    orElse: () => TaskStatus.pending,
-  );
+  final normalized = value?.trim();
+  if (normalized == null || normalized.isEmpty) {
+    return TaskStatus.pending;
+  }
+
+  final lowerCase = normalized.toLowerCase();
+  return switch (lowerCase) {
+    'done' || 'complete' || 'completed' => TaskStatus.completed,
+    'inprogress' ||
+    'in_progress' ||
+    'in-progress' ||
+    'in progress' => TaskStatus.inProgress,
+    'pending' => TaskStatus.pending,
+    _ => TaskStatus.values.firstWhere(
+      (status) => status.name == normalized,
+      orElse: () => TaskStatus.pending,
+    ),
+  };
 }
 
 class TodoTask extends Equatable {
@@ -58,6 +73,7 @@ class TodoTask extends Equatable {
     required this.priority,
     required this.dueDate,
     required this.status,
+    required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -69,6 +85,7 @@ class TodoTask extends Equatable {
   final TaskPriority priority;
   final DateTime dueDate;
   final TaskStatus status;
+  final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -80,6 +97,7 @@ class TodoTask extends Equatable {
     TaskPriority? priority,
     DateTime? dueDate,
     TaskStatus? status,
+    int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -91,6 +109,7 @@ class TodoTask extends Equatable {
       priority: priority ?? this.priority,
       dueDate: dueDate ?? this.dueDate,
       status: status ?? this.status,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -105,6 +124,7 @@ class TodoTask extends Equatable {
     priority,
     dueDate,
     status,
+    sortOrder,
     createdAt,
     updatedAt,
   ];

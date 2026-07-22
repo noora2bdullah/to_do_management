@@ -7,7 +7,7 @@ final class TaskFilters extends Equatable {
     this.searchQuery = '',
     this.status,
     this.priority,
-    this.sortOption = TaskSortOption.dueDate,
+    this.sortOption = TaskSortOption.manual,
   });
 
   final String searchQuery;
@@ -32,6 +32,7 @@ final class TaskFilters extends Equatable {
 
     filtered.sort((first, second) {
       return switch (sortOption) {
+        TaskSortOption.manual => _compareManualOrder(first, second),
         TaskSortOption.dueDate => first.dueDate.compareTo(second.dueDate),
         TaskSortOption.createdDate => second.createdAt.compareTo(
           first.createdAt,
@@ -60,4 +61,18 @@ final class TaskFilters extends Equatable {
 
   @override
   List<Object?> get props => [searchQuery, status, priority, sortOption];
+}
+
+int _compareManualOrder(TodoTask first, TodoTask second) {
+  final orderComparison = first.sortOrder.compareTo(second.sortOrder);
+  if (orderComparison != 0) {
+    return orderComparison;
+  }
+
+  final createdComparison = second.createdAt.compareTo(first.createdAt);
+  if (createdComparison != 0) {
+    return createdComparison;
+  }
+
+  return first.id.compareTo(second.id);
 }

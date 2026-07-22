@@ -1,4 +1,5 @@
 import '../../domain/entities/task_input.dart';
+import '../../domain/entities/task_sync_snapshot.dart';
 import '../../domain/entities/todo_task.dart';
 import '../../domain/repositories/task_repository.dart';
 import '../datasources/firestore_task_remote_data_source.dart';
@@ -9,13 +10,26 @@ final class TaskRepositoryImpl implements TaskRepository {
   final TaskRemoteDataSource _remoteDataSource;
 
   @override
-  Stream<List<TodoTask>> watchTasks(String userId) {
+  Stream<TaskSyncSnapshot> watchTasks(String userId) {
     return _remoteDataSource.watchTasks(userId);
   }
 
   @override
-  Future<void> createTask({required String userId, required TaskInput input}) {
-    return _remoteDataSource.createTask(userId: userId, input: input);
+  Future<TaskSyncSnapshot> refreshTasks(String userId) {
+    return _remoteDataSource.refreshTasks(userId);
+  }
+
+  @override
+  Future<void> createTask({
+    required String userId,
+    required TaskInput input,
+    required int sortOrder,
+  }) {
+    return _remoteDataSource.createTask(
+      userId: userId,
+      input: input,
+      sortOrder: sortOrder,
+    );
   }
 
   @override
@@ -39,5 +53,13 @@ final class TaskRepositoryImpl implements TaskRepository {
       taskId: taskId,
       status: status,
     );
+  }
+
+  @override
+  Future<void> reorderTasks({
+    required String userId,
+    required List<TodoTask> tasks,
+  }) {
+    return _remoteDataSource.reorderTasks(userId: userId, tasks: tasks);
   }
 }

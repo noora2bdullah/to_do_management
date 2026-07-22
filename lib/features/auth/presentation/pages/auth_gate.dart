@@ -7,6 +7,7 @@ import '../../../tasks/presentation/bloc/tasks_event.dart';
 import '../../../tasks/presentation/pages/home_page.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_state.dart';
+import '../widgets/auth_splash_screen.dart';
 import 'auth_page.dart';
 
 class AuthGate extends StatelessWidget {
@@ -23,7 +24,7 @@ class AuthGate extends StatelessWidget {
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 280),
           child: switch (state.status) {
-            AuthStatus.unknown => const _SplashScreen(
+            AuthStatus.unknown => const AuthSplashScreen(
               key: ValueKey('auth-splash'),
             ),
             AuthStatus.unauthenticated => const AuthPage(
@@ -39,33 +40,6 @@ class AuthGate extends StatelessWidget {
           },
         );
       },
-    );
-  }
-}
-
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.task_alt,
-              size: 52,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 20),
-            const SizedBox.square(
-              dimension: 28,
-              child: CircularProgressIndicator(strokeWidth: 3),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

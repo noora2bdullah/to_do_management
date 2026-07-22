@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_text_style.dart';
+
 class TaskStatePanel extends StatelessWidget {
   const TaskStatePanel({
     required this.icon,
@@ -21,9 +23,14 @@ class TaskStatePanel extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Card(
+    return DecoratedBox(
+      decoration: AppTextStyle.raisedSurfaceDecoration(
+        colorScheme,
+        tintColor: colorScheme.primary,
+        prominent: true,
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -33,20 +40,30 @@ class TaskStatePanel extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 3),
               )
             else
-              Icon(icon, size: 48, color: colorScheme.primary),
+              Container(
+                width: 68,
+                height: 68,
+                decoration: AppTextStyle.raisedTintDecoration(
+                  colorScheme,
+                  colorScheme.primary,
+                  radius: 8,
+                  prominent: true,
+                ),
+                child: Icon(icon, size: 38, color: colorScheme.primary),
+              ),
             const SizedBox(height: 18),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
+              style: AppTextStyle.style20Black.copyWith(
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: AppTextStyle.style14Regular.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),

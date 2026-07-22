@@ -17,6 +17,7 @@ final class TasksState extends Equatable {
     this.loadError,
     this.actionMessage,
     this.actionError,
+    this.lastSyncedAt,
   });
 
   final String? userId;
@@ -27,6 +28,7 @@ final class TasksState extends Equatable {
   final String? loadError;
   final String? actionMessage;
   final String? actionError;
+  final DateTime? lastSyncedAt;
 
   bool get isLoading => loadStatus == TasksLoadStatus.loading;
 
@@ -58,6 +60,7 @@ final class TasksState extends Equatable {
     bool clearActionMessage = false,
     String? actionError,
     bool clearActionError = false,
+    DateTime? lastSyncedAt,
   }) {
     return TasksState(
       userId: userId ?? this.userId,
@@ -70,6 +73,7 @@ final class TasksState extends Equatable {
           ? null
           : actionMessage ?? this.actionMessage,
       actionError: clearActionError ? null : actionError ?? this.actionError,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
     );
   }
 
@@ -83,5 +87,6 @@ final class TasksState extends Equatable {
     loadError,
     actionMessage,
     actionError,
+    lastSyncedAt,
   ];
 }

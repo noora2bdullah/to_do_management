@@ -51,6 +51,33 @@ final class SignUpWithEmail extends UseCase<AppUser, AuthCredentials> {
   }
 }
 
+final class GetSavedAccounts extends UseCase<List<AppUser>, NoParams> {
+  const GetSavedAccounts(this._repository);
+
+  final AuthRepository _repository;
+
+  @override
+  Future<List<AppUser>> call(NoParams params) => _repository.savedAccounts();
+}
+
+final class ForgetSavedAccount extends UseCase<void, String> {
+  const ForgetSavedAccount(this._repository);
+
+  final AuthRepository _repository;
+
+  @override
+  Future<void> call(String params) => _repository.forgetAccount(params);
+}
+
+final class SwitchToSavedAccount extends UseCase<AppUser, AppUser> {
+  const SwitchToSavedAccount(this._repository);
+
+  final AuthRepository _repository;
+
+  @override
+  Future<AppUser> call(AppUser params) => _repository.switchToAccount(params);
+}
+
 final class SignOut extends UseCase<void, NoParams> {
   const SignOut(this._repository);
 

@@ -12,6 +12,8 @@ final class AuthState extends Equatable {
     this.formMode = AuthFormMode.signIn,
     this.isSubmitting = false,
     this.obscurePassword = true,
+    this.savedAccounts = const [],
+    this.selectedAccountEmail,
     this.errorMessage,
   });
 
@@ -20,6 +22,8 @@ final class AuthState extends Equatable {
   final AuthFormMode formMode;
   final bool isSubmitting;
   final bool obscurePassword;
+  final List<AppUser> savedAccounts;
+  final String? selectedAccountEmail;
   final String? errorMessage;
 
   bool get isSignIn => formMode == AuthFormMode.signIn;
@@ -31,6 +35,9 @@ final class AuthState extends Equatable {
     AuthFormMode? formMode,
     bool? isSubmitting,
     bool? obscurePassword,
+    List<AppUser>? savedAccounts,
+    String? selectedAccountEmail,
+    bool clearSelectedAccountEmail = false,
     String? errorMessage,
     bool clearErrorMessage = false,
   }) {
@@ -40,6 +47,10 @@ final class AuthState extends Equatable {
       formMode: formMode ?? this.formMode,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       obscurePassword: obscurePassword ?? this.obscurePassword,
+      savedAccounts: savedAccounts ?? this.savedAccounts,
+      selectedAccountEmail: clearSelectedAccountEmail
+          ? null
+          : selectedAccountEmail ?? this.selectedAccountEmail,
       errorMessage: clearErrorMessage
           ? null
           : errorMessage ?? this.errorMessage,
@@ -53,6 +64,8 @@ final class AuthState extends Equatable {
     formMode,
     isSubmitting,
     obscurePassword,
+    savedAccounts,
+    selectedAccountEmail,
     errorMessage,
   ];
 }

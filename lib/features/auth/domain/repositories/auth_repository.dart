@@ -5,6 +5,8 @@ abstract interface class AuthRepository {
 
   AppUser? get currentUser;
 
+  Future<List<AppUser>> savedAccounts();
+
   Future<AppUser> signInWithEmailAndPassword({
     required String email,
     required String password,
@@ -14,6 +16,10 @@ abstract interface class AuthRepository {
     required String email,
     required String password,
   });
+
+  Future<AppUser> switchToAccount(AppUser account);
+
+  Future<void> forgetAccount(String userId);
 
   Future<void> signOut();
 }

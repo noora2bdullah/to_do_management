@@ -60,6 +60,16 @@ final class TaskStatusChanged extends TasksEvent {
   List<Object?> get props => [taskId, status];
 }
 
+final class TasksReordered extends TasksEvent {
+  const TasksReordered({required this.oldIndex, required this.newIndex});
+
+  final int oldIndex;
+  final int newIndex;
+
+  @override
+  List<Object?> get props => [oldIndex, newIndex];
+}
+
 final class TaskSearchChanged extends TasksEvent {
   const TaskSearchChanged(this.query);
 
@@ -101,12 +111,13 @@ final class TaskActionMessageCleared extends TasksEvent {
 }
 
 final class TasksLoaded extends TasksEvent {
-  const TasksLoaded(this.tasks);
+  const TasksLoaded(this.tasks, {required this.isSyncedWithServer});
 
   final List<TodoTask> tasks;
+  final bool isSyncedWithServer;
 
   @override
-  List<Object?> get props => [tasks];
+  List<Object?> get props => [tasks, isSyncedWithServer];
 }
 
 final class TasksStreamFailed extends TasksEvent {
